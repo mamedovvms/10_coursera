@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import requests
 import random
 import argparse
-
+import json
 
 def get_cmd_params():
     parser = argparse.ArgumentParser()
@@ -31,16 +31,35 @@ def get_course_info(course_url):
     response = requests.get(course_url)
     if not response.ok:
         return None
+    print(response.content)
     soup = BeautifulSoup(response.content)
-    name_course = soup('h1')[1].text
 
-    ball_course = soup.find('span', attrs={
+    _json = soup.find('script', type="application/ld+json")
+    if _json:
+        print(json.dumps(json.loads(_json.text), indent=4))
+    name_course = soup.find('h1', attrs={
+        'class': 'H2_1pmnvep-o_O-weightNormal_s9jwp5-o_O-fontHeadline_1uu0gyz '
+                 'max-text-width-xl m-b-1s'
+    }).text
+
+    ball_tag = soup.find('span', attrs={
         'class': 'H4_1k76nzj-o_O-weightBold_uvlhiv-o_O-bold_1byw3y2 m-l-1s m-r-1 m-b-0'
         }
     )
+    if ball_tag:
+        ball = ball_tag.text
+    else:
+        ball = None
+
+    start_tag = soup.find('div', id='start-date-string')
+    if start_tag:
+        start = start_tag.span.text
+    else:
+        start = None
 
     print(name_course)
-    print(ball_course)
+    print(ball)
+    print(start)
 
 
 def output_courses_info_to_xlsx(filepath, courses):
