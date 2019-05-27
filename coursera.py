@@ -1,9 +1,12 @@
 from lxml import etree
 from bs4 import BeautifulSoup
+from datetime import datetime
+from openpyxl import Workbook
 import requests
 import random
 import argparse
 import json
+
 
 def get_cmd_params():
     parser = argparse.ArgumentParser()
@@ -27,47 +30,50 @@ def get_courses_list():
     return courses
 
 
-def get_course_info(course_url):
+def get_json_course(course_url):
     response = requests.get(course_url)
     if not response.ok:
         return None
-    print(response.content)
     soup = BeautifulSoup(response.content)
+    json_data_course = soup.find('script', type="application/ld+json")
+    return json_data_course
 
-    _json = soup.find('script', type="application/ld+json")
-    if _json:
-        print(json.dumps(json.loads(_json.text), indent=4))
-    name_course = soup.find('h1', attrs={
-        'class': 'H2_1pmnvep-o_O-weightNormal_s9jwp5-o_O-fontHeadline_1uu0gyz '
-                 'max-text-width-xl m-b-1s'
-    }).text
+def get_course_info(course_url):
 
-    ball_tag = soup.find('span', attrs={
-        'class': 'H4_1k76nzj-o_O-weightBold_uvlhiv-o_O-bold_1byw3y2 m-l-1s m-r-1 m-b-0'
-        }
+    json_data_course = get_json_course(course_url)
+    if not json_data_course:
+        return None
+    data_course = json.loads(json_data_course.text)
+    bread_crumb_list, product, course = data_course["@graph"]
+
+    name_url = course['url']
+    name_course = course['name']
+    language = course['inLanguage']
+    startDate = datetime.strptime(course['hasCourseInstance']['startDate'], '%Y-%m-%d')
+    endDate = datetime.strptime(course['hasCourseInstance']['endDate'], '%Y-%m-%d')
+    delta = endDate-startDate
+    weeks = round(delta.days/7)
+    rating = product.get('aggregateRating', {}).get('ratingValue', '')
+
+    return (
+        name_url,
+        name_course,
+        language,
+        startDate.strftime('%Y-%m-%d'),
+        weeks,
+        rating
     )
-    if ball_tag:
-        ball = ball_tag.text
-    else:
-        ball = None
-
-    start_tag = soup.find('div', id='start-date-string')
-    if start_tag:
-        start = start_tag.span.text
-    else:
-        start = None
-
-    print(name_course)
-    print(ball)
-    print(start)
 
 
 def output_courses_info_to_xlsx(filepath, courses):
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(('URL', 'Name', 'Language', 'Start date', 'Weeks', 'Rating'))
     for course in courses:
         course_info = get_course_info(course)
-        #print(course_info)
-
-
+        ws.append(course_info)
+    wb.save(filepath)
 
 
 def main():
@@ -75,9 +81,8 @@ def main():
     params = get_cmd_params()
     size = params.size
     courses = get_courses_list()
-
     output_courses_info_to_xlsx(filename, random.choices(courses, k=size))
-    print(random.choices(courses, k=size))
+
 
 if __name__ == '__main__':
     main()
