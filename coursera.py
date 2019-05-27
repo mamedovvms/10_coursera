@@ -49,9 +49,9 @@ def get_course_info(course_url):
     name_url = course['url']
     name_course = course['name']
     language = course['inLanguage']
-    startDate = datetime.strptime(course['hasCourseInstance']['startDate'], '%Y-%m-%d')
-    endDate = datetime.strptime(course['hasCourseInstance']['endDate'], '%Y-%m-%d')
-    delta = endDate-startDate
+    start_date = datetime.strptime(course['hasCourseInstance']['startDate'], '%Y-%m-%d')
+    end_date = datetime.strptime(course['hasCourseInstance']['endDate'], '%Y-%m-%d')
+    delta = end_date-start_date
     weeks = round(delta.days/7)
     rating = product.get('aggregateRating', {}).get('ratingValue', '')
 
@@ -59,7 +59,7 @@ def get_course_info(course_url):
         name_url,
         name_course,
         language,
-        startDate.strftime('%Y-%m-%d'),
+        start_date.strftime('%Y-%m-%d'),
         weeks,
         rating
     )
