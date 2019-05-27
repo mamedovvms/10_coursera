@@ -73,6 +73,7 @@ def output_courses_info_to_xlsx(filepath, courses):
     for course in courses:
         course_info = get_course_info(course)
         ws.append(course_info)
+
     wb.save(filepath)
 
 
@@ -81,6 +82,8 @@ def main():
     params = get_cmd_params()
     size = params.size
     courses = get_courses_list()
+    if size > len(courses):
+        size = len(courses)
     output_courses_info_to_xlsx(filename, random.choices(courses, k=size))
 
 
