@@ -19,34 +19,46 @@ def get_cmd_params():
     return params
 
 
-def get_courses_list():
-
+def get_courses_xml():
     url = 'https://www.coursera.org/sitemap~www~courses.xml'
     response = requests.get(url)
     xml = response.content
+    return xml
+
+
+def get_courses_list():
+    xml = get_courses_xml()
     nodes = etree.fromstring(xml)
     courses = [loc_node.text for url_node in nodes.getchildren()
                for loc_node in url_node.getchildren()]
     return courses
 
 
-def get_json_course(course_url):
+def get_couse_html(course_url):
     response = requests.get(course_url)
     if not response.ok:
         return None
-    soup = BeautifulSoup(response.content)
-    json_data_course = soup.find('script', type="application/ld+json")
-    return json_data_course
+    else:
+        return response.content
+
+def get_tag_course_info(course_url):
+
+    content = get_couse_html(course_url)
+    soup = BeautifulSoup(content)
+    data_course = soup.find('script', type="application/ld+json")
+    return data_course
+
 
 def get_course_info(course_url):
 
-    json_data_course = get_json_course(course_url)
+    json_data_course = get_tag_course_info(course_url)
     if not json_data_course:
         return None
+
     data_course = json.loads(json_data_course.text)
     bread_crumb_list, product, course = data_course["@graph"]
 
-    name_url = course['url']
+    url = course['url']
     name_course = course['name']
     language = course['inLanguage']
     start_date = datetime.strptime(course['hasCourseInstance']['startDate'], '%Y-%m-%d')
@@ -55,24 +67,35 @@ def get_course_info(course_url):
     weeks = round(delta.days/7)
     rating = product.get('aggregateRating', {}).get('ratingValue', '')
 
-    return (
-        name_url,
-        name_course,
-        language,
-        start_date.strftime('%Y-%m-%d'),
-        weeks,
-        rating
-    )
+    return {
+        'url': url,
+        'name': name_course,
+        'language': language,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'training_period': weeks,
+        'rating': rating
+    }
+
+
+def add_course_to_xlsx(workbook, course_info):
+    workbook.append([
+        course_info['url'],
+        course_info['name'],
+        course_info['language'],
+        course_info['start_date'],
+        course_info['training_period'],
+        course_info['rating'] if course_info['rating'] else '-'
+    ])
 
 
 def output_courses_info_to_xlsx(filepath, courses):
 
     wb = Workbook()
     ws = wb.active
-    ws.append(('URL', 'Name', 'Language', 'Start date', 'Weeks', 'Rating'))
+
     for course in courses:
         course_info = get_course_info(course)
-        ws.append(course_info)
+        add_course_to_xlsx(ws, course_info)
 
     wb.save(filepath)
 
