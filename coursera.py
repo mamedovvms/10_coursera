@@ -19,43 +19,34 @@ def get_cmd_params():
     return params
 
 
-def get_courses_xml():
-    url = 'https://www.coursera.org/sitemap~www~courses.xml'
+def get_html_content(url):
     response = requests.get(url)
-    xml = response.content
-    return xml
+    if response.ok:
+        return response.content
+    else:
+        return None
 
 
-def get_courses_list():
-    xml = get_courses_xml()
-    nodes = etree.fromstring(xml)
+def get_courses_list(xml_courses):
+    nodes = etree.fromstring(xml_courses)
     courses = [loc_node.text for url_node in nodes.getchildren()
                for loc_node in url_node.getchildren()]
     return courses
 
 
-def get_couse_html(course_url):
-    response = requests.get(course_url)
-    if not response.ok:
-        return None
-    else:
-        return response.content
-
-def get_tag_course_info(course_url):
-
-    content = get_couse_html(course_url)
-    soup = BeautifulSoup(content)
+def get_json_course(html_content):
+    soup = BeautifulSoup(html_content)
     data_course = soup.find('script', type="application/ld+json")
-    return data_course
+    if data_course:
+        return data_course.text
 
 
-def get_course_info(course_url):
+def get_course_info(json_data_course):
 
-    json_data_course = get_tag_course_info(course_url)
     if not json_data_course:
         return None
 
-    data_course = json.loads(json_data_course.text)
+    data_course = json.loads(json_data_course)
     bread_crumb_list, product, course = data_course["@graph"]
 
     url = course['url']
@@ -77,39 +68,52 @@ def get_course_info(course_url):
     }
 
 
-def add_course_to_xlsx(workbook, course_info):
-    if not course_info:
-        return
-    workbook.append([
-        course_info['url'],
-        course_info['name'],
-        course_info['language'],
-        course_info['start_date'],
-        course_info['training_period'],
-        course_info['rating'] if course_info['rating'] else '-'
-    ])
+def get_courses_info(courses):
+    for course_url in courses:
+        course_html = get_html_content(course_url)
+        course_json = get_json_course(course_html)
+        course_info = get_course_info(course_json)
+        if course_info:
+            yield course_info
 
 
-def output_courses_info_to_xlsx(filepath, courses):
+def output_courses_info_to_xlsx(filepath, courses_info):
 
     wb = Workbook()
     ws = wb.active
 
-    for course in courses:
-        course_info = get_course_info(course)
-        add_course_to_xlsx(ws, course_info)
+    for course_info in courses_info:
+        try:
+            ws.append([
+                course_info['url'],
+                course_info['name'],
+                course_info['language'],
+                course_info['start_date'],
+                course_info['training_period'],
+                course_info['rating'] if course_info['rating'] else '-'
+            ])
+        except:
+            a= 1
 
     wb.save(filepath)
 
 
 def main():
+
+    url_courses_xml = 'https://www.coursera.org/sitemap~www~courses.xml'
     filename = 'courses.xlsx'
     params = get_cmd_params()
     size = params.size
-    courses = get_courses_list()
+
+    xml_courses = get_html_content(url_courses_xml)
+    courses = get_courses_list(xml_courses)
+
     if size > len(courses):
         size = len(courses)
-    output_courses_info_to_xlsx(filename, random.choices(courses, k=size))
+
+    courses_info = get_courses_info(random.choices(courses, k=size))
+
+    output_courses_info_to_xlsx(filename, courses_info)
 
 
 if __name__ == '__main__':
