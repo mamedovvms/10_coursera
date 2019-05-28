@@ -83,17 +83,14 @@ def output_courses_info_to_xlsx(filepath, courses_info):
     ws = wb.active
 
     for course_info in courses_info:
-        try:
-            ws.append([
-                course_info['url'],
-                course_info['name'],
-                course_info['language'],
-                course_info['start_date'],
-                course_info['training_period'],
-                course_info['rating'] if course_info['rating'] else '-'
-            ])
-        except:
-            a= 1
+        ws.append([
+            course_info['url'],
+            course_info['name'],
+            course_info['language'],
+            course_info['start_date'],
+            course_info['training_period'],
+            course_info['rating'] if course_info['rating'] else '-'
+        ])
 
     wb.save(filepath)
 
