@@ -78,6 +78,8 @@ def get_course_info(course_url):
 
 
 def add_course_to_xlsx(workbook, course_info):
+    if not course_info:
+        return
     workbook.append([
         course_info['url'],
         course_info['name'],
